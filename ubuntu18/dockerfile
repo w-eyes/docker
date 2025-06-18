@@ -1,0 +1,61 @@
+# Образ от nvidia с Ubuntu 18.04 и CUDA
+FROM nvidia/cuda:11.0.3-base-ubuntu18.04
+
+# Может спотыкаться на разных пакетах. Параметр noninteractive помогает этого избежать
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Обязательное
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-setuptools \
+    python3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+#PyTorch с поддержкой CUDA 11.0.3
+
+#Строчка ниже не собирается. Мешает старая версия python 3.6
+#RUN pip3 install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+
+# wheel для установки torch и остального - само зависимость не разрешает
+RUN pip3 install wheel
+
+
+RUN pip3 install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 typing_extensions==3.10.0.2 pillow==7.2.0 --extra-index-url https://download.pytorch.org/whl/cu110
+
+# Установка ROS Melodic - из документации ROS1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/sources.list.d/ros-latest.list' \
+    && apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    ros-melodic-ros-base \
+    python-rosdep \
+    python-rosinstall \
+    python-rosinstall-generator \
+    python-wstool \
+    && rm -rf /var/lib/apt/lists/*
+
+# rosdep - из документации ROS1
+RUN rosdep init && rosdep update
+
+
+# ROS1 catkin and other
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python-catkin-tools \
+    python3-opencv \
+    && rm -rf /var/lib/apt/lists/*
+
+# workspace
+RUN mkdir -p /ros_ws/src
+
+# Переменные окружения
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
+
+WORKDIR /ros_ws
