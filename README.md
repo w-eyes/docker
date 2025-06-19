@@ -1,8 +1,8 @@
-# Контейнер с Ubuntu18, cuda и ROS1
+# Контейнер с Ubuntu 18.04, Cuda и ROS1
 
 ## TO DO
 
-- [ ] Сделать контейнер для Uuntu 20 и Melodic
+- [ ] Сделать контейнер для Uuntu 20.04 и Melodic
 - [ ] Сделать обёртку для сборки. (На самом деле взять готовую из и адаптировать под нас)
 
 
@@ -20,7 +20,8 @@ apt install nvidia-driver-570
 Здесь можно пойти двумя путями и поставить docker.io из официальных репозиториев Ubuntu или сборкой от docker. Считается, что docker.io более стабилен. Будем ставить его: 
 
 ```
-apt install docker.io
+apt install docker.io docker-buildx
+
 
 ```
 
@@ -78,7 +79,7 @@ cd ubuntu18
 
 # Сборка производится из папки, где лежит dockerfile
 
-docker build -t ros-melodic-ml . 
+docker buildx build -t ros-melodic-ml . 
 
 #
 

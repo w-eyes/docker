@@ -13,6 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Инструменты
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    mc \
+    bash-completion \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+
 #PyTorch с поддержкой CUDA 11.0.3
 
 #Строчка ниже не собирается. Мешает старая версия python 3.6
@@ -23,6 +31,11 @@ RUN pip3 install wheel
 
 
 RUN pip3 install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 typing_extensions==3.10.0.2 pillow==7.2.0 --extra-index-url https://download.pytorch.org/whl/cu110
+
+# NVIDIA CUDA toolkit
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nvidia-cuda-toolkit \
+    && rm -rf /var/lib/apt/lists/* 
 
 # Установка ROS Melodic - из документации ROS1
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -55,7 +68,7 @@ RUN mkdir -p /ros_ws/src
 
 # Переменные окружения
 RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 
 WORKDIR /ros_ws
