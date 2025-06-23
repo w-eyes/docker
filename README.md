@@ -8,7 +8,7 @@
 
 
 ## Подготовка к соборке контейнера
-
+Подразумевается, что у вас установлена Ubuntu 24 любым способом: Bare Metall, VPS, WSL. 
 
 1. Установить драйвера NVIDIA под свою карту.
 ```
@@ -24,8 +24,6 @@ apt install nvidia-driver-570
 
 ```
 apt install docker.io docker-buildx docker-compose-v2
-
-
 ```
 
 
@@ -80,7 +78,7 @@ docker run -it --rm --gpus all nvidia/cuda:11.0.3-base-ubuntu18.04 nvidia-smi
 ```
 # После клонирования репозитория
 
-cd ubuntu18
+cd docker/ubuntu18
 
 # Сборка производится из папки, где лежит dockerfile
 
@@ -104,6 +102,9 @@ docker run -it \
 docker exec -it ros-melodic-ml bash
 
 ```
+## Как проверить, что Cuda работает
+
+В папке ubuntu18/ros_ws/src/cuda_tests находятся скрипты для быстрой проверки вычислений на GPU. Скрипты на python запускаются через python3, например ```python3 cpu_gpu_test.py```, а nvcc_test.cu сначала надо скомпилировать с помощью команды ```nvcc test.cu -o test```
 
 ## Графика
 
@@ -141,7 +142,12 @@ DISPLAY=:1 mate-session
 Из-за WayLand в Ubuntu 24 может некорретно пробрасываться графика и нужно будет запускать сессию "Ubuntu on XOrg"
 
 ```
-# Требуется перепроверка
+# Если GPU отсутствует, то надо убрать --gpus all
+
+# Включаем графику для локального пользователя. Потенциально опасная настройка, рекомендуется после использования контейнера выполнить xhost -local:docker
+
+xhost +local:docker 
+
 docker run -it \
   --name ros-melodic-ml \
   --rm \
@@ -152,7 +158,7 @@ docker run -it \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   ${XDG_RUNTIME_DIR:+-v $XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR} \
   ${WSL_INTEROP:+-v /mnt/wslg:/mnt/wslg} \
-  --volume=~/docker/ubuntu18/ros_ws:/ros_ws \
+  --volume="$HOME/docker/ubuntu18/ros_ws:/ros_ws" \
   ros-melodic-ml \
   bash
 ```
