@@ -9,18 +9,21 @@
 
 ## Подготовка к соборке контейнера
 
+
 1. Установить драйвера NVIDIA под свою карту.
 ```
 apt install nvidia-driver-570
 ```
 Убедиться что команда `nvidia-smi` отрабатывает и показывает корректные данные.
 
+Если используется WSL2, то убедитесь, что присутствует переменная окружения MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
+
 2. Установить Docker
 
 Здесь можно пойти двумя путями и поставить docker.io из официальных репозиториев Ubuntu или сборкой от docker. Считается, что docker.io более стабилен. Будем ставить его: 
 
 ```
-apt install docker.io docker-buildx
+apt install docker.io docker-buildx docker-compose-v2
 
 
 ```
@@ -61,6 +64,8 @@ sudo systemctl restart docker
 
 Для того, чтобы можно было пользоваться контейнерами от обычного пользователя, надо добавить себя в группу docker `sudo usermod -aG docker $USER` и перезайти. 
 
+Внимание! Rootless mode мы не будем использовать, т.к он накладывает ограничения на использование контейнера. А т.к. мы запускаем полноценную ОС c графикой и пробрасываем сеть, то будем использовать именно группу docker. 
+
 ## Проверка, что карточка пробрасывается в docker
 
 ```
@@ -81,9 +86,15 @@ cd ubuntu18
 
 docker buildx build -t ros-melodic-ml . 
 
-#
+# Запуск без графики. Карта используется для вычислений.
 
-docker run -it --name ros-melodic-ml --rm --gpus all -v ~/docker/ubuntu18/ros_ws:/ros_ws ros-melodic-ml bash
+docker run -it \
+  --name ros-melodic-ml \
+  --rm \
+  --gpus all \
+  --volume=$HOME/docker/ubuntu18/ros_ws:/ros_ws \
+  ros-melodic-ml \
+  bash
 
 # При выходе контейнер убивается, все сделанные изменения в контейнере теряются. Если ясно, что внутри контейнера нужны какие-то пакеты и библиотеки, то лучше вносить измененияв dockerfile, тестировать работоспосбность и пересобирать контейнер.
 #Рабочая папка ros_ws пробрасывается на сервер, в ней можно проводить основные работы, сохранять файлы.
@@ -91,5 +102,114 @@ docker run -it --name ros-melodic-ml --rm --gpus all -v ~/docker/ubuntu18/ros_ws
 # В соседней консоли можно также зайти в уже запущеный контейнер, т.к. для ROS одного терминала мало.
 
 docker exec -it ros-melodic-ml bash
+
+```
+
+## Графика
+
+Для проверки графики можно запускать glxgears, mate-terminal и т.д.
+
+### WSL2
+
+Убедитесь, что присутствует переменная окружения MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
+
+```
+docker run -it \
+  --name ros-melodic-ml \
+  --rm \
+  --gpus all \
+  -e DISPLAY=$DISPLAY \
+  -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+  -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+  --volume=/tmp/.X11-unix:/tmp/.X11-unix \
+  --volume="/mnt/wslg:/mnt/wslg" \
+  --volume=~/docker/ubuntu18/ros_ws:/ros_ws \
+  ros-melodic-ml \
+  bash
+
+```
+Из консоли можно запускать грфические приложения. Если нужно запустить полноценную графическую оболчку , то можно воспользоваться виртуальным X сервером Xephyr. В контейнере выполняем:
+
+```
+Xephyr :1 -screen 1200x800 -ac -br -noreset +extension RANDR +extension GLX &
+DISPLAY=:1 mate-session
+```
+И получаем полноценную графическую оболчку.
+
+### Ubuntu 24
+
+Из-за WayLand в Ubuntu 24 может некорретно пробрасываться графика и нужно будет запускать сессию "Ubuntu on XOrg"
+
+```
+# Требуется перепроверка
+docker run -it \
+  --name ros-melodic-ml \
+  --rm \
+  --gpus all \
+  -e DISPLAY=$DISPLAY \
+  ${XDG_RUNTIME_DIR:+-e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR} \
+  ${WAYLAND_DISPLAY:+-e WAYLAND_DISPLAY=$WAYLAND_DISPLAY} \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  ${XDG_RUNTIME_DIR:+-v $XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR} \
+  ${WSL_INTEROP:+-v /mnt/wslg:/mnt/wslg} \
+  --volume=~/docker/ubuntu18/ros_ws:/ros_ws \
+  ros-melodic-ml \
+  bash
+```
+
+### Удалённый доступ к серверу
+
+Основная идея заключается в запуске полноценного desktop окружения в контейнере с помощью XPRA и проброс портов на сервер, а от туда по ssh на локальный ПК. XPRA позволяет отключиться от экрана и подключиться вновь.
+
+Для начала нужно положить личный ssh ключ в ./ssh/autorized_keys на сервер. Это можно сделать через меня, прислав мне public key.
+
+После этого нужно подключиться к серверу с пробросом порта: 
+```
+ssh dockeruser@server -L 14500:127.0.0.1:14500
+```
+Запускаем контейнер следующей командой:
+```
+docker run -it \
+  --name ros-melodic-ml \
+  --rm \
+  --gpus all \
+  -v ~/docker/ubuntu18/ros_ws:/ros_ws \
+  -p 14500:14500 \
+  ros-melodic-ml \
+  bash -c "/root/start-xpra.sh & tail -f /dev/null"
+# Используйте & для запуска в фоне и docker stop ros-melodic-ml для остановки контейнера
+```
+Теперь на локальном компьютере открыт порт 14500. Мы можем подключиться с помощью xpra attach через консоль ```xpra attach tcp://localhost:14500``` или через графический интерфейс.
+
+Если не хочется использовать всё окружение, то можно зайти в контейнер и запустить нужное приложение (в примере запустится mate-terminal) вручную:
+
+```
+# На сервере
+docker run -it \
+  --name ros-melodic-ml \
+  --rm \
+  --gpus all \
+  -v ~/docker/ubuntu18/ros_ws:/ros_ws \
+  -p 14500:14500 \
+  ros-melodic-ml \
+  bash
+
+# Внутри контейнера
+
+xpra start:100 \
+  --bind-tcp=0.0.0.0:14500 \
+  --html=on \
+  --start-child="mate-terminal" \
+  --resize-display=yes \
+  --desktop-scaling=1920x1080 \
+  --exit-with-children \
+  --clipboard=yes \
+  --notifications=no \
+  --compress=9 \
+  --bell=no \
+  --quality=50 \
+  --speed=50 \
+  --encoding=jpeg \
+  --daemon=no 
 
 ```
