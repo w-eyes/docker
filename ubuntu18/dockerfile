@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-setuptools \
     python3-dev \
     build-essential \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 #PyTorch с поддержкой CUDA 11.0.3
@@ -63,6 +64,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     htop \
     mesa-utils \
     && rm -rf /var/lib/apt/lists/*
+RUN wget -qO - https://xpra.org/gpg.asc | apt-key add - && add-apt-repository -y "deb https://xpra.org/lts bionic main" && apt install -y xpra=3.1.9-r0-1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xserver-xephyr \
+    ubuntu-mate-desktop \
+    #mate-* \ 
+    mate-applet-brisk-menu \
+    && rm -rf /var/lib/apt/lists/*
+
+#RUN git clone https://github.com/Xpra-org/xpra && cd xpra && ./setup.py install-repo && apt-get update && apt-get install xpra 
+
+
 
 # workspace
 RUN mkdir -p /ros_ws/src
