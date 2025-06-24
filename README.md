@@ -77,6 +77,8 @@ docker run -it --rm --gpus all nvidia/cuda:11.0.3-base-ubuntu18.04 nvidia-smi
 
 ## Сборка и запуск контейнера
 
+**Проверяйте пути --volume=$HOME/docker/ubuntu18/ros_ws:/ros_ws**
+
 ```
 # После клонирования репозитория
 
